@@ -39,11 +39,22 @@ body {
   letter-spacing: 0;
   line-height: 1.15;
   text-shadow:
+      /* 外层：1px 浅色柔边（灰色半透明） */
+    -2px -2px 1px rgba(0,0,0,0.3),
+    2px -2px 1px rgba(0,0,0,0.3),
+    -2px  2px 1px rgba(0,0,0,0.3),
+    2px  2px 1px rgba(0,0,0,0.3),
+    
+    /* 内层：1px 纯黑硬边 */
     -1px -1px 0 #000,
     1px -1px 0 #000,
-    -1px 1px 0 #000,
-    1px 1px 0 #000,
-    0 2px 2px rgba(0, 0, 0, 0.85);
+    -1px  1px 0 #000,
+    1px  1px 0 #000,
+    /* -1px -1px 0 #111111,
+    1px -1px 0 #111111,
+    -1px 1px 0 #111111,
+    1px 1px 0 #111111, */
+    0 0 2px rgba(0, 0, 0, 0.95);
 }
 
 .text-ui kbd {
@@ -54,11 +65,23 @@ body {
   color: #212529;
   display: inline-flex;
   font-weight: bold;
-  height: 38px;
+  height: 28px;
   justify-content: center;
-  min-width: 38px;
+  min-width: 28px;
   padding: 0 6px;
-  border-radius: 5px;
+  border-radius: 5px; 
   vertical-align: middle;
   font-size: 21px;
+  box-shadow:
+      /* 外层：1px 浅色柔边（灰色半透明） */
+    -2px -2px 1px rgba(0,0,0,0.3),
+    2px -2px 1px rgba(0,0,0,0.3),
+    -2px  2px 1px rgba(0,0,0,0.3),
+    2px  2px 1px rgba(0,0,0,0.3),
+
+    -1px -1px 0 #111111,
+    1px -1px 0 #111111,
+    -1px 1px 0 #111111,
+    1px 1px 0 #111111,
+    0 0px 1px rgba(0, 0, 0, 0.95);
 }
