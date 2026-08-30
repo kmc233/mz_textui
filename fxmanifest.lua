@@ -6,6 +6,7 @@ version "1.0.0"
 author "MUZI Scripts"
 
 client_script "client.lua"
+client_script "test.lua"
 
 ui_page "web/index.html"
 
