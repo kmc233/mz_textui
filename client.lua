@@ -10,8 +10,10 @@ TextUIConfig = {
 local activeText = nil
 local activeControls = nil
 local activeHoldDuration = 1000
-local holdStartedAt = {}
-local lastProgresses = {}
+local activeHoldIndex = nil
+local holdStartedAt = nil
+local lastProgressIndex = nil
+local lastProgress = -1
 
 local controlMap = {
   E = 38,
@@ -62,8 +64,10 @@ function DrawText(text, hold, duration)
       end
     end
   end
-  holdStartedAt = {}
-  lastProgresses = {}
+  activeHoldIndex = nil
+  holdStartedAt = nil
+  lastProgressIndex = nil
+  lastProgress = -1
 
   SendNUIMessage({
     type = 'show',
@@ -80,8 +84,10 @@ function HideText()
   activeText = nil
   activeControls = nil
   activeHoldDuration = 1000
-  holdStartedAt = {}
-  lastProgresses = {}
+  activeHoldIndex = nil
+  holdStartedAt = nil
+  lastProgressIndex = nil
+  lastProgress = -1
 
   SendNUIMessage({
     type = 'hide'
@@ -93,42 +99,54 @@ exports('HideText', HideText)
 CreateThread(function()
   while true do
     if activeText and activeControls and #activeControls > 0 then
-      local progresses = {}
       local now = GetGameTimer()
+      local pressedIndex = nil
 
+      -- Pick the first pressed key only when no key is currently holding.
+      -- Once selected, that key owns the hold until it is released.
       for index, key in ipairs(activeControls) do
         local control = key.control
         local isPressed = control and (
           IsControlPressed(0, control) or IsDisabledControlPressed(0, control)
         )
-
-        -- Starting from the pressed state also handles a key that was already
-        -- held when the UI was shown, without relying on a just-pressed edge.
-        if isPressed and not holdStartedAt[index] then
-          holdStartedAt[index] = now
-        end
-
-        if holdStartedAt[index] and isPressed then
-          progresses[index] = math.min(
-            (now - holdStartedAt[index]) / activeHoldDuration,
-            1
-          )
-        else
-          holdStartedAt[index] = nil
-          progresses[index] = 0
-        end
-      end
-
-      local changed = false
-      for index, progress in ipairs(progresses) do
-        if lastProgresses[index] ~= progress then
-          changed = true
+        if isPressed then
+          pressedIndex = index
           break
         end
       end
 
-      if changed then
-        lastProgresses = progresses
+      if activeHoldIndex then
+        local key = activeControls[activeHoldIndex]
+        local control = key and key.control
+        local stillPressed = control and (
+          IsControlPressed(0, control) or IsDisabledControlPressed(0, control)
+        )
+        if not stillPressed then
+          activeHoldIndex = nil
+          holdStartedAt = nil
+        end
+      end
+
+      if not activeHoldIndex and pressedIndex then
+        activeHoldIndex = pressedIndex
+        holdStartedAt = now
+      end
+
+      local progress = 0
+      if activeHoldIndex and holdStartedAt then
+        local rawProgress = math.min((now - holdStartedAt) / activeHoldDuration, 1)
+        -- One-percent steps are visually smooth enough and avoid sending
+        -- messages for sub-pixel changes every frame.
+        progress = math.floor(rawProgress * 100 + 0.5) / 100
+      end
+
+      if lastProgressIndex ~= activeHoldIndex or lastProgress ~= progress then
+        lastProgressIndex = activeHoldIndex
+        lastProgress = progress
+        local progresses = {}
+        if activeHoldIndex then
+          progresses[activeHoldIndex] = progress
+        end
         SendNUIMessage({
           type = 'progress',
           progresses = progresses
