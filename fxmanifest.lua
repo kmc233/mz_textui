@@ -9,7 +9,6 @@ client_script "client.lua"
 client_script "test.lua"
 
 ui_page "web/index.html"
-
 files {"web/*"}
 
 escrow_ignore {"**/*"}
