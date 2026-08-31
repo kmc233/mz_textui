@@ -4,7 +4,10 @@ TextUIConfig = {
   order = "text-right",
 
   -- Set this to a control id to override automatic key detection.
-  control = nil
+  control = nil,
+
+  -- Enable temporary input diagnostics with /restart mz_textui if needed.
+  debug = true
 }
 
 local activeText = nil
@@ -14,6 +17,7 @@ local activeHoldIndex = nil
 local holdStartedAt = nil
 local lastProgressIndex = nil
 local lastProgress = -1
+local lastDebugState = nil
 
 local controlMap = {
   E = 38,
@@ -49,6 +53,12 @@ local function getControlsFromText(text)
   return controls
 end
 
+local function debugPrint(message)
+  if TextUIConfig.debug then
+    print(('[mz_textui] %s'):format(message))
+  end
+end
+
 function DrawText(text, hold, duration)
   activeText = tostring(text or "")
   local isHold = hold == true
@@ -57,17 +67,28 @@ function DrawText(text, hold, duration)
   activeControls = nil
   if isHold then
     local controls = getControlsFromText(activeText)
+    local hasMappedControl = false
     for _, key in ipairs(controls) do
+      debugPrint(('DrawText key [%s] -> control %s'):format(
+        key.name,
+        tostring(key.control)
+      ))
       if key.control then
-        activeControls = controls
-        break
+        hasMappedControl = true
       end
     end
+    if hasMappedControl then
+      activeControls = controls
+    end
+  end
+  if isHold and not activeControls then
+    debugPrint('DrawText: no mapped controls found')
   end
   activeHoldIndex = nil
   holdStartedAt = nil
   lastProgressIndex = nil
   lastProgress = -1
+  lastDebugState = nil
 
   SendNUIMessage({
     type = 'show',
@@ -88,6 +109,7 @@ function HideText()
   holdStartedAt = nil
   lastProgressIndex = nil
   lastProgress = -1
+  lastDebugState = nil
 
   SendNUIMessage({
     type = 'hide'
@@ -101,6 +123,7 @@ CreateThread(function()
     if activeText and activeControls and #activeControls > 0 then
       local now = GetGameTimer()
       local pressedIndex = nil
+      local pressedStates = {}
 
       -- Pick the first pressed key only when no key is currently holding.
       -- Once selected, that key owns the hold until it is released.
@@ -109,9 +132,34 @@ CreateThread(function()
         local isPressed = control and (
           IsControlPressed(0, control) or IsDisabledControlPressed(0, control)
         )
+        pressedStates[index] = not not isPressed
         if isPressed then
           pressedIndex = index
           break
+        end
+      end
+
+      if TextUIConfig.debug then
+        local stateParts = {}
+        for index, key in ipairs(activeControls) do
+          stateParts[#stateParts + 1] = ('%s=%s:%s'):format(
+            index,
+            key.name,
+            pressedStates[index] and 'DOWN' or 'up'
+          )
+        end
+        local debugState = ('%s|candidate=%s|active=%s'):format(
+          table.concat(stateParts, ', '),
+          tostring(pressedIndex),
+          tostring(activeHoldIndex)
+        )
+        if debugState ~= lastDebugState then
+          lastDebugState = debugState
+          debugPrint(('controls %s, candidate=%s, active=%s'):format(
+            table.concat(stateParts, ', '),
+            tostring(pressedIndex),
+            tostring(activeHoldIndex)
+          ))
         end
       end
 
@@ -122,6 +170,10 @@ CreateThread(function()
           IsControlPressed(0, control) or IsDisabledControlPressed(0, control)
         )
         if not stillPressed then
+          debugPrint(('release key index %s [%s]'):format(
+            tostring(activeHoldIndex),
+            key.name
+          ))
           activeHoldIndex = nil
           holdStartedAt = nil
         end
@@ -130,6 +182,10 @@ CreateThread(function()
       if not activeHoldIndex and pressedIndex then
         activeHoldIndex = pressedIndex
         holdStartedAt = now
+        debugPrint(('start hold key index %s [%s]'):format(
+          tostring(activeHoldIndex),
+          activeControls[activeHoldIndex].name
+        ))
       end
 
       local progress = 0
@@ -145,7 +201,9 @@ CreateThread(function()
         lastProgress = progress
         local progresses = {}
         if activeHoldIndex then
-          progresses[activeHoldIndex] = progress
+          -- String keys force a JSON object, keeping Lua's 1-based indexes
+          -- aligned with the NUI data-key-index values.
+          progresses[tostring(activeHoldIndex)] = progress
         end
         SendNUIMessage({
           type = 'progress',
