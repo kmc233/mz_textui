@@ -8,9 +8,10 @@ TextUIConfig = {
 }
 
 local activeText = nil
-local activeControl = nil
+local activeControls = nil
 local activeHoldDuration = 1000
-local holdStartedAt = nil
+local holdStartedAt = {}
+local lastProgresses = {}
 
 local controlMap = {
   E = 38,
@@ -31,15 +32,19 @@ local controlMap = {
   DOWN = 173
 }
 
-local function getControlFromText(text)
-  if TextUIConfig.control then
-    return TextUIConfig.control
+local function getControlsFromText(text)
+  local controls = {}
+
+  for key in text:gmatch("%[(.-)%]") do
+    -- Keep an entry for every rendered key so Lua and NUI indexes stay aligned,
+    -- even when the text contains a key that has no configured control.
+    controls[#controls + 1] = {
+      name = key,
+      control = TextUIConfig.control or controlMap[string.upper(key)]
+    }
   end
 
-  local key = text:match("%[(.-)%]")
-  if not key then return nil end
-
-  return controlMap[string.upper(key)]
+  return controls
 end
 
 function DrawText(text, hold, duration)
@@ -47,16 +52,25 @@ function DrawText(text, hold, duration)
   local isHold = hold == true
   activeHoldDuration = math.max(tonumber(duration) or 1000, 1)
 
-  activeControl = isHold and getControlFromText(activeText) or nil
-  holdStartedAt = nil
+  activeControls = nil
+  if isHold then
+    local controls = getControlsFromText(activeText)
+    for _, key in ipairs(controls) do
+      if key.control then
+        activeControls = controls
+        break
+      end
+    end
+  end
+  holdStartedAt = {}
+  lastProgresses = {}
 
   SendNUIMessage({
     type = 'show',
     text = activeText,
     order = TextUIConfig.order,
     hold = isHold,
-    holdDuration = activeHoldDuration,
-    control = activeControl
+    holdDuration = activeHoldDuration
   })
 end
 
@@ -64,9 +78,10 @@ exports('DrawText', DrawText)
 
 function HideText()
   activeText = nil
-  activeControl = nil
+  activeControls = nil
   activeHoldDuration = 1000
-  holdStartedAt = nil
+  holdStartedAt = {}
+  lastProgresses = {}
 
   SendNUIMessage({
     type = 'hide'
@@ -77,24 +92,48 @@ exports('HideText', HideText)
 
 CreateThread(function()
   while true do
-    if activeText and activeControl then
-      local isPressed = IsControlPressed(0, activeControl)
-      local progress = 0
+    if activeText and activeControls and #activeControls > 0 then
+      local progresses = {}
+      local now = GetGameTimer()
 
-      if isPressed then
-        holdStartedAt = holdStartedAt or GetGameTimer()
-        progress = math.min(
-          (GetGameTimer() - holdStartedAt) / activeHoldDuration,
-          1
+      for index, key in ipairs(activeControls) do
+        local control = key.control
+        local isPressed = control and (
+          IsControlPressed(0, control) or IsDisabledControlPressed(0, control)
         )
-      else
-        holdStartedAt = nil
+
+        -- Starting from the pressed state also handles a key that was already
+        -- held when the UI was shown, without relying on a just-pressed edge.
+        if isPressed and not holdStartedAt[index] then
+          holdStartedAt[index] = now
+        end
+
+        if holdStartedAt[index] and isPressed then
+          progresses[index] = math.min(
+            (now - holdStartedAt[index]) / activeHoldDuration,
+            1
+          )
+        else
+          holdStartedAt[index] = nil
+          progresses[index] = 0
+        end
       end
 
-      SendNUIMessage({
-        type = 'progress',
-        progress = progress
-      })
+      local changed = false
+      for index, progress in ipairs(progresses) do
+        if lastProgresses[index] ~= progress then
+          changed = true
+          break
+        end
+      end
+
+      if changed then
+        lastProgresses = progresses
+        SendNUIMessage({
+          type = 'progress',
+          progresses = progresses
+        })
+      end
 
       Wait(0)
     else

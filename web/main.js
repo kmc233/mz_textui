@@ -1,10 +1,12 @@
 (function () {
   const textUI = document.querySelector(".text-ui");
   const defaultOrder = "text-right";
+  let progressKeys = [];
 
-  function createKey(key, hold) {
+  function createKey(key, hold, keyIndex) {
     const keyWrapper = document.createElement("span");
     keyWrapper.className = `text-ui__key-wrap${hold ? " is-hold" : ""}`;
+    keyWrapper.dataset.keyIndex = keyIndex;
 
     const keyNode = document.createElement("kbd");
     keyNode.className = "text-ui__key";
@@ -21,14 +23,17 @@
     return keyWrapper;
   }
 
-  function renderText(text, order, hold) {
+  function renderText(text, order, hold, keyState) {
     text.split(/\r?\n/).forEach((line) => {
       const row = document.createElement("div");
       row.className = "text-ui__row";
 
       const parts = line.split(/(\[.*?\])/g).filter(Boolean);
       const nodes = parts.map((part) => {
-        if (/^\[.*\]$/.test(part)) return createKey(part.slice(1, -1), hold);
+        if (/^\[.*\]$/.test(part)) {
+          keyState.index += 1;
+          return createKey(part.slice(1, -1), hold, keyState.index);
+        }
 
         const textNode = document.createElement("span");
         textNode.className = "text-ui__label";
@@ -60,15 +65,26 @@
       const text = String(data.text ?? "");
 
       textUI.replaceChildren();
-      renderText(text, data.order || defaultOrder, data.hold === true);
+      renderText(text, data.order || defaultOrder, data.hold === true, { index: 0 });
 
       textUI.classList.add("is-visible");
-      textUI.style.setProperty("--progress", "0deg");
+      progressKeys = [...textUI.querySelectorAll("[data-key-index]")];
+      progressKeys.forEach((key) => {
+        key.style.setProperty("--progress", "0deg");
+      });
     } else if (data.type === "hide") {
       textUI.classList.remove("is-visible");
+      progressKeys = [];
     } else if (data.type === "progress") {
-      const progress = Math.max(0, Math.min(Number(data.progress) || 0, 1));
-      textUI.style.setProperty("--progress", `${progress * 360}deg`);
+      const progresses = data.progresses || {};
+
+      progressKeys.forEach((key) => {
+        const progress = Math.max(
+          0,
+          Math.min(Number(progresses[key.dataset.keyIndex]) || 0, 1)
+        );
+        key.style.setProperty("--progress", `${progress * 360}deg`);
+      });
     }
   });
 })();

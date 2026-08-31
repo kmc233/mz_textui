@@ -50,7 +50,7 @@ body {
 }
 
 .text-ui__progress {
-  background: conic-gradient(#f4f0e8 var(--progress), rgba(0, 0, 0, 0.42) 0deg);
+  background: conic-gradient(#f4f0e8 var(--progress, 0deg), rgba(0, 0, 0, 0.42) 0deg);
   border-radius: 7px;
   height: 36px;
   left: 50%;
