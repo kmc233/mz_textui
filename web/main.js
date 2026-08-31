@@ -22,27 +22,33 @@
   }
 
   function renderText(text, order, hold) {
-    const parts = text.split(/(\[.*?\])/g).filter(Boolean);
-    const nodes = parts.map((part) => {
-      if (/^\[.*\]$/.test(part)) return createKey(part.slice(1, -1), hold);
+    text.split(/\r?\n/).forEach((line) => {
+      const row = document.createElement("div");
+      row.className = "text-ui__row";
 
-      const textNode = document.createElement("span");
-      textNode.className = "text-ui__label";
-      textNode.textContent = part;
-      return textNode;
+      const parts = line.split(/(\[.*?\])/g).filter(Boolean);
+      const nodes = parts.map((part) => {
+        if (/^\[.*\]$/.test(part)) return createKey(part.slice(1, -1), hold);
+
+        const textNode = document.createElement("span");
+        textNode.className = "text-ui__label";
+        textNode.textContent = part;
+        return textNode;
+      });
+
+      if (order === "original") {
+        nodes.forEach((node) => row.appendChild(node));
+      } else {
+        nodes
+          .filter((node) => node.classList.contains("text-ui__label"))
+          .forEach((node) => row.appendChild(node));
+        nodes
+          .filter((node) => node.classList.contains("text-ui__key-wrap"))
+          .forEach((node) => row.appendChild(node));
+      }
+
+      textUI.appendChild(row);
     });
-
-    if (order === "original") {
-      nodes.forEach((node) => textUI.appendChild(node));
-      return;
-    }
-
-    nodes
-      .filter((node) => node.classList.contains("text-ui__label"))
-      .forEach((node) => textUI.appendChild(node));
-    nodes
-      .filter((node) => node.classList.contains("text-ui__key-wrap"))
-      .forEach((node) => textUI.appendChild(node));
   }
 
   window.addEventListener("message", (evt) => {

@@ -11,8 +11,9 @@ body {
 }
 
 .text-ui {
-  align-items: center;
+  align-items: flex-end;
   display: flex;
+  flex-direction: column;
   gap: 11px;
   opacity: 0;
   pointer-events: none;
@@ -24,6 +25,14 @@ body {
   user-select: none;
   visibility: hidden;
   white-space: nowrap;
+}
+
+.text-ui__row {
+  align-items: center;
+  display: flex;
+  gap: 11px;
+  justify-content: flex-end;
+  min-height: 28px;
 }
 
 .text-ui__key-wrap {
