@@ -3,15 +3,13 @@ TextUIConfig = {
   -- "original": keep the order from the source text, for example [E] Open.
   order = "text-right",
 
-  -- Hold duration in milliseconds for a full progress ring.
-  holdDuration = 1000,
-
   -- Set this to a control id to override automatic key detection.
   control = nil
 }
 
 local activeText = nil
 local activeControl = nil
+local activeHoldDuration = 1000
 local holdStartedAt = nil
 
 local controlMap = {
@@ -44,16 +42,20 @@ local function getControlFromText(text)
   return controlMap[string.upper(key)]
 end
 
-function DrawText(text)
+function DrawText(text, hold, duration)
   activeText = tostring(text or "")
-  activeControl = getControlFromText(activeText)
+  local isHold = hold == true
+  activeHoldDuration = math.max(tonumber(duration) or 1000, 1)
+
+  activeControl = isHold and getControlFromText(activeText) or nil
   holdStartedAt = nil
 
   SendNUIMessage({
     type = 'show',
     text = activeText,
     order = TextUIConfig.order,
-    holdDuration = TextUIConfig.holdDuration,
+    hold = isHold,
+    holdDuration = activeHoldDuration,
     control = activeControl
   })
 end
@@ -63,6 +65,7 @@ exports('DrawText', DrawText)
 function HideText()
   activeText = nil
   activeControl = nil
+  activeHoldDuration = 1000
   holdStartedAt = nil
 
   SendNUIMessage({
@@ -81,7 +84,7 @@ CreateThread(function()
       if isPressed then
         holdStartedAt = holdStartedAt or GetGameTimer()
         progress = math.min(
-          (GetGameTimer() - holdStartedAt) / math.max(TextUIConfig.holdDuration, 1),
+          (GetGameTimer() - holdStartedAt) / activeHoldDuration,
           1
         )
       else

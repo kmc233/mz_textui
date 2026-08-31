@@ -2,27 +2,29 @@
   const textUI = document.querySelector(".text-ui");
   const defaultOrder = "text-right";
 
-  function createKey(key) {
+  function createKey(key, hold) {
     const keyWrapper = document.createElement("span");
-    keyWrapper.className = "text-ui__key-wrap";
+    keyWrapper.className = `text-ui__key-wrap${hold ? " is-hold" : ""}`;
 
     const keyNode = document.createElement("kbd");
     keyNode.className = "text-ui__key";
     keyNode.textContent = key;
     keyWrapper.appendChild(keyNode);
 
-    const progressNode = document.createElement("span");
-    progressNode.className = "text-ui__progress";
-    progressNode.setAttribute("aria-hidden", "true");
-    keyWrapper.appendChild(progressNode);
+    if (hold) {
+      const progressNode = document.createElement("span");
+      progressNode.className = "text-ui__progress";
+      progressNode.setAttribute("aria-hidden", "true");
+      keyWrapper.appendChild(progressNode);
+    }
 
     return keyWrapper;
   }
 
-  function renderText(text, order) {
+  function renderText(text, order, hold) {
     const parts = text.split(/(\[.*?\])/g).filter(Boolean);
     const nodes = parts.map((part) => {
-      if (/^\[.*\]$/.test(part)) return createKey(part.slice(1, -1));
+      if (/^\[.*\]$/.test(part)) return createKey(part.slice(1, -1), hold);
 
       const textNode = document.createElement("span");
       textNode.className = "text-ui__label";
@@ -52,7 +54,7 @@
       const text = String(data.text ?? "");
 
       textUI.replaceChildren();
-      renderText(text, data.order || defaultOrder);
+      renderText(text, data.order || defaultOrder, data.hold === true);
 
       textUI.classList.add("is-visible");
       textUI.style.setProperty("--progress", "0deg");

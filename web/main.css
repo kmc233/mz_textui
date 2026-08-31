@@ -35,6 +35,11 @@ body {
   width: 42px;
 }
 
+.text-ui__key-wrap:not(.is-hold) {
+  height: 28px;
+  width: 28px;
+}
+
 .text-ui__progress {
   background: conic-gradient(#f4f0e8 var(--progress), rgba(0, 0, 0, 0.42) 0deg);
   border-radius: 7px;
@@ -57,19 +62,29 @@ body {
 
 .text-ui__key {
   align-items: center;
+  aspect-ratio: 1;
   background: #f4f0e8;
-  border: 0;
-  box-shadow: none;
   box-sizing: border-box;
   color: #212529;
   display: inline-flex;
+  font-weight: bold;
   height: 28px;
   justify-content: center;
   min-width: 28px;
-  padding: 0;
-  position: relative;
+  padding: 0 6px;
   border-radius: 5px;
+  vertical-align: middle;
+  font-size: 21px;
+  box-shadow:
+    0 0 1px rgba(0, 0, 0, 0.95),
+    0 0 2px rgba(0, 0, 0, 0.9),
+    0 2px 3px rgba(0, 0, 0, 0.45);
+  position: relative;
   z-index: 1;
+}
+
+.text-ui__key-wrap.is-hold .text-ui__key {
+  box-shadow: none;
 }
 
 .text-ui.is-visible {
@@ -93,10 +108,4 @@ body {
     0 0 1px rgba(0, 0, 0, 0.95),
     0 0 2px rgba(0, 0, 0, 0.9),
     0 2px 4px rgba(0, 0, 0, 0.65);
-}
-
-.text-ui kbd {
-  font-weight: bold;
-  font-size: 21px;
-  vertical-align: middle;
 }
