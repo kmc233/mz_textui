@@ -7,7 +7,7 @@ TextUIConfig = {
   control = nil,
 
   -- Enable temporary input diagnostics with /restart mz_textui if needed.
-  debug = true
+  debug = false
 }
 
 local activeText = nil
@@ -123,19 +123,40 @@ CreateThread(function()
     if activeText and activeControls and #activeControls > 0 then
       local now = GetGameTimer()
       local pressedIndex = nil
-      local pressedStates = {}
+      local pressedStates = TextUIConfig.debug and {} or nil
 
-      -- Pick the first pressed key only when no key is currently holding.
-      -- Once selected, that key owns the hold until it is released.
-      for index, key in ipairs(activeControls) do
-        local control = key.control
+      if activeHoldIndex then
+        -- Once a key owns the hold, only poll that key until it is released.
+        local key = activeControls[activeHoldIndex]
+        local control = key and key.control
         local isPressed = control and (
           IsControlPressed(0, control) or IsDisabledControlPressed(0, control)
         )
-        pressedStates[index] = not not isPressed
-        if isPressed then
-          pressedIndex = index
-          break
+        if pressedStates then
+          pressedStates[activeHoldIndex] = not not isPressed
+        end
+        if not isPressed then
+          debugPrint(('release key index %s [%s]'):format(
+            tostring(activeHoldIndex),
+            key and key.name or '?'
+          ))
+          activeHoldIndex = nil
+          holdStartedAt = nil
+        end
+      else
+        -- With no active key, find the first pressed key in display order.
+        for index, key in ipairs(activeControls) do
+          local control = key.control
+          local isPressed = control and (
+            IsControlPressed(0, control) or IsDisabledControlPressed(0, control)
+          )
+          if pressedStates then
+            pressedStates[index] = not not isPressed
+          end
+          if isPressed then
+            pressedIndex = index
+            break
+          end
         end
       end
 
@@ -145,7 +166,7 @@ CreateThread(function()
           stateParts[#stateParts + 1] = ('%s=%s:%s'):format(
             index,
             key.name,
-            pressedStates[index] and 'DOWN' or 'up'
+            pressedStates and pressedStates[index] and 'DOWN' or 'up'
           )
         end
         local debugState = ('%s|candidate=%s|active=%s'):format(
@@ -160,22 +181,6 @@ CreateThread(function()
             tostring(pressedIndex),
             tostring(activeHoldIndex)
           ))
-        end
-      end
-
-      if activeHoldIndex then
-        local key = activeControls[activeHoldIndex]
-        local control = key and key.control
-        local stillPressed = control and (
-          IsControlPressed(0, control) or IsDisabledControlPressed(0, control)
-        )
-        if not stillPressed then
-          debugPrint(('release key index %s [%s]'):format(
-            tostring(activeHoldIndex),
-            key.name
-          ))
-          activeHoldIndex = nil
-          holdStartedAt = nil
         end
       end
 
