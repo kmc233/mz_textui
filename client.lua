@@ -6,7 +6,6 @@ TextUIConfig = {
   -- Set this to a control id to override automatic key detection.
   control = nil,
 
-  -- Enable temporary input diagnostics with /restart mz_textui if needed.
   debug = false
 }
 
@@ -19,6 +18,7 @@ local lastProgressIndex = nil
 local lastProgress = -1
 local lastDebugState = nil
 local HOLD_UPDATE_INTERVAL = 10
+local holdComplete = false
 
 local controlMap = {
   E = 38,
@@ -39,15 +39,23 @@ local controlMap = {
   DOWN = 173
 }
 
-local function getControlsFromText(text)
+local function getControlsFromText(text, configuredControls)
   local controls = {}
+  local configuredIndex = 0
 
   for key in text:gmatch("%[(.-)%]") do
+    configuredIndex = configuredIndex + 1
+    local configured = configuredControls and configuredControls[configuredIndex] or nil
+    local configuredKey = configured and configured.key or key
     -- Keep an entry for every rendered key so Lua and NUI indexes stay aligned,
     -- even when the text contains a key that has no configured control.
     controls[#controls + 1] = {
-      name = key,
-      control = TextUIConfig.control or controlMap[string.upper(key)]
+      name = configuredKey,
+      control = TextUIConfig.control
+        or (configured and configured.control)
+        or controlMap[string.upper(configuredKey)],
+      event = configured and configured.event or nil,
+      args = configured and configured.args or nil
     }
   end
 
@@ -60,14 +68,18 @@ local function debugPrint(message)
   end
 end
 
-function DrawText(text, hold, duration)
-  activeText = tostring(text or "")
-  local isHold = hold == true
-  activeHoldDuration = math.max(tonumber(duration) or 1000, 1)
+function Show(options)
+  options = options or {}
+  activeText = tostring(options.text or "")
+  local isHold = options.hold == true or tonumber(options.hold) ~= nil
+  activeHoldDuration = math.max(
+    tonumber(options.holdDuration or options.hold) or 1000,
+    1
+  )
 
   activeControls = nil
   if isHold then
-    local controls = getControlsFromText(activeText)
+    local controls = getControlsFromText(activeText, options.controls)
     local hasMappedControl = false
     for _, key in ipairs(controls) do
       debugPrint(('DrawText key [%s] -> control %s'):format(
@@ -90,6 +102,7 @@ function DrawText(text, hold, duration)
   lastProgressIndex = nil
   lastProgress = -1
   lastDebugState = nil
+  holdComplete = false
 
   SendNUIMessage({
     type = 'show',
@@ -97,6 +110,16 @@ function DrawText(text, hold, duration)
     order = TextUIConfig.order,
     hold = isHold,
     holdDuration = activeHoldDuration
+  })
+end
+
+exports('Show', Show)
+
+function DrawText(text, hold, duration)
+  return Show({
+    text = text,
+    hold = hold,
+    holdDuration = duration
   })
 end
 
@@ -111,6 +134,7 @@ function HideText()
   lastProgressIndex = nil
   lastProgress = -1
   lastDebugState = nil
+  holdComplete = false
 
   SendNUIMessage({
     type = 'hide'
@@ -118,6 +142,28 @@ function HideText()
 end
 
 exports('HideText', HideText)
+
+function IsHolding()
+  return activeHoldIndex ~= nil and holdStartedAt ~= nil
+end
+
+exports('IsHolding', IsHolding)
+
+function GetState()
+  local key = activeHoldIndex and activeControls and activeControls[activeHoldIndex] or nil
+  local progress = IsHolding() and math.max(lastProgress, 0) or 0
+
+  return {
+    visible = activeText ~= nil,
+    holding = IsHolding(),
+    key = key and key.name or nil,
+    control = key and key.control or nil,
+    index = activeHoldIndex,
+    progress = progress
+  }
+end
+
+exports('GetState', GetState)
 
 CreateThread(function()
   while true do
@@ -188,6 +234,7 @@ CreateThread(function()
       if not activeHoldIndex and pressedIndex then
         activeHoldIndex = pressedIndex
         holdStartedAt = now
+        holdComplete = false
         debugPrint(('start hold key index %s [%s]'):format(
           tostring(activeHoldIndex),
           activeControls[activeHoldIndex].name
@@ -200,6 +247,22 @@ CreateThread(function()
         -- One-percent steps are visually smooth enough and avoid sending
         -- messages for sub-pixel changes every frame.
         progress = math.floor(rawProgress * 100 + 0.5) / 100
+
+        if progress >= 1 and not holdComplete then
+          holdComplete = true
+          local key = activeControls[activeHoldIndex]
+          local data = {
+            key = key.name,
+            control = key.control,
+            index = activeHoldIndex,
+            progress = 1,
+            args = key.args
+          }
+          TriggerEvent('mz_textui:holdComplete', data)
+          if type(key.event) == 'string' and key.event ~= '' then
+            TriggerEvent(key.event, data)
+          end
+        end
       end
 
       if lastProgressIndex ~= activeHoldIndex or lastProgress ~= progress then
