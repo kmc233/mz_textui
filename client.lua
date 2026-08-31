@@ -18,6 +18,7 @@ local holdStartedAt = nil
 local lastProgressIndex = nil
 local lastProgress = -1
 local lastDebugState = nil
+local HOLD_UPDATE_INTERVAL = 10
 
 local controlMap = {
   E = 38,
@@ -216,7 +217,11 @@ CreateThread(function()
         })
       end
 
-      Wait(0)
+      if activeHoldIndex then
+        Wait(HOLD_UPDATE_INTERVAL)
+      else
+        Wait(0)
+      end
     else
       Wait(250)
     end
