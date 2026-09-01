@@ -1,6 +1,25 @@
-# mz_textui
+<h1 align="center">mz_textui</h1>
 
-A universal RDR2/GTA6-style TextUI, supporting multi-key display, single-key hold progress, and completion events.
+<img width="1920" height="1080" alt="textui" src="https://github.com/user-attachments/assets/6c2d64f5-243c-46e9-b966-54a73746bf9b" />
+
+> A universal **RDR2 / GTA VI-style TextUI** for FiveM, supporting multi-key display, single-key hold progress, and completion events.
+
+<p align="center">
+  <a href="https://muziscripts.com/">
+    <img src="https://img.shields.io/badge/Store-muziscripts.com-blue?style=for-the-badge" alt="Store">
+  </a>
+  <a href="https://discord.com/invite/Yp8ukQvsJv">
+    <img src="https://img.shields.io/badge/Discord-Join%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord">
+  </a>
+</p>
+
+<p align="center">
+  <b>Lightweight</b> •
+  <b>Modern</b> •
+  <b>Performance Optimized</b>
+</p>
+
+---
 
 ## Installation
 
