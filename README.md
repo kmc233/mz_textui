@@ -2,7 +2,7 @@
 
 <img width="1920" height="1080" alt="textui" src="https://github.com/user-attachments/assets/6c2d64f5-243c-46e9-b966-54a73746bf9b" />
 
-> A universal **RDR2 / GTA VI-style TextUI** for FiveM, supporting multi-key display, single-key hold progress, and completion events.
+> A universal **RDR2 / GTA VI-style TextUI** for FiveM, supporting multi-key display, independent row-based hold durations, and central event handling.
 
 <p align="center">
   <a href="https://muziscripts.com/">
@@ -29,7 +29,7 @@ Load the resource in `server.cfg`:
 ensure mz_textui
 ```
 
-## Compatible Interface
+## Legacy Interface (`DrawText`)
 
 Display normal hint:
 
@@ -49,42 +49,34 @@ Hide hint:
 exports['mz_textui']:HideText()
 ```
 
-## Recommended Interface
+## Recommended Interface (`Show`)
 
-`Show` supports configuring independent events for each key:
+`Show` supports a fully structured `controls` list where each row has independent properties, individual hold durations, and custom event mapping:
 
 ```lua
 exports['mz_textui']:Show({
-    text = '[E] Open Garage\n[F] Manage Vehicles',
-    hold = 2000,
     controls = {
-        { key = 'E', event = 'garage:open' },
-        { key = 'F', event = 'garage:manage' }
+        { text = "Accept", key = "E", event = "my_script:actionAccept", hold = 2000 },
+        { text = "Cancel", key = "G", event = "my_script:actionCancel", hold = 1000 }
     }
 })
 ```
 
-`controls` correspond to the order of placeholder keys in the text. Supported default keys include `E`, `F`, `G`, `H`, `X`, `Q`, `R`, `T`, `Y`, `SPACE`, `ENTER`, arrow keys, etc.
+Supported default keys include `E`, `F`, `G`, `H`, `X`, `Q`, `R`, `T`, `Y`, `SPACE`, `ENTER`, arrow keys, etc.
 
 ## Completion Events
 
-When hold reaches 100%, a generic event triggers once per hold:
+When a hold reaches 100%, individual business events or a shared centralized event will trigger:
 
 ```lua
-RegisterNetEvent('mz_textui:holdComplete', function(data)
-    print(data.key, data.control, data.index)
+-- Register your events globally
+RegisterNetEvent('my_script:actionAccept', function(data)
+    print('Accepted with key ' .. data.key .. '!')
 end)
+
 ```
 
-If the control item has an `event` configured, the corresponding business event also triggers:
-
-```lua
-RegisterNetEvent('garage:open', function(data)
-    -- Open garage
-end)
-```
-
-Event parameters:
+Event parameters table (`data`):
 
 ```lua
 {
@@ -110,4 +102,4 @@ local state = exports['mz_textui']:GetState()
 - Multiple keys can be displayed simultaneously, but only one key is allowed to enter Hold at a time.
 - After the current Hold key is released, other pressed keys will take over.
 - Only the currently active key is detected during hold.
-- When `hold` is a number, it represents hold duration in milliseconds; `true` uses `holdDuration`, default 1000ms.
+- Each structured control item can define its individual hold duration via `hold` or `holdDuration` in milliseconds (defaults to 1000ms).
